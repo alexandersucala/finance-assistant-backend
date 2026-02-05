@@ -20,12 +20,15 @@ FRESHNESS = {
     'historical': timedelta(days=365*10)    # Basically never expire (10 years)
 }
 
+def _get_db():
+    """Get database connection"""
+    return sqlite3.connect(DB_PATH)
 
 def init_database():
     """Initialize the cache database and create tables if they don't exist"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = _get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS cache (
             ticker TEXT NOT NULL,
