@@ -8,6 +8,8 @@ from typing import Optional, Dict, Any, List
 
 import sys
 from pathlib import Path
+from stripe_handler import create_checkout_session, verify_webhook
+from database import track_usage, mark_user_as_paid
 
 # Add backend to path
 sys.path.append(str(Path(__file__).parent))
@@ -61,6 +63,30 @@ class AnalysisResponse(BaseModel):
     suggested_followups: Optional[list] = None  # New: clickable follow-up questions
     error: Optional[str] = None
 
+@app.post("/api/stripe-webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events"""
+    payload = await request.body()
+    sig_header = request.headers.get('stripe-signature')
+    
+    result = verify_webhook(payload, sig_header)
+    
+    if not result["success"]:
+        return {"error": result["error"]}, 400
+    
+    event = result["event"]
+    
+    # Handle successful subscription
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        client_reference_id = session.get('client_reference_id')
+        
+        if client_reference_id:
+            # Mark user as paid
+            mark_user_as_paid(client_reference_id)
+            print(f"✓ User {client_reference_id} subscribed successfully")
+    
+    return {"success": True}
 
 @app.get("/")
 async def root():
@@ -70,10 +96,43 @@ async def root():
         "service": "Finance Assistant API",
         "version": "2.0.0"
     }
-
+@app.post("/api/create-checkout")
+async def create_checkout(request: Request):
+    """Create Stripe checkout session for subscription"""
+    client_ip = request.client.host
+    
+    # Get base URL from request
+    base_url = str(request.base_url).rstrip('/')
+    success_url = f"{base_url}/../tools/finance-assistant.html?session=success"
+    cancel_url = f"{base_url}/../tools/finance-assistant.html?session=cancel"
+    
+    result = create_checkout_session(
+        success_url=success_url,
+        cancel_url=cancel_url,
+        client_reference_id=client_ip
+    )
+    
+    return result
 
 @app.post("/api/ask", response_model=AnalysisResponse)
-async def ask_question(request: QuestionRequest):
+async def ask_question(request: Request, question_data: QuestionRequest):
+    # Get user identifier (IP address for now)
+    client_ip = request.client.host
+    
+    # Track usage
+    usage = track_usage(client_ip)
+    
+    # Check if limit hit
+    if usage["limit_hit"]:
+        return {
+            "success": False,
+            "confidence": "LOW",
+            "answer": f"You've used all {usage['count']} free queries. Upgrade to Premium for unlimited access at $5/month.",
+            "paywall": True,
+            "usage": usage
+        }
+    
+    # Continue with normal processing...
     """
     Main endpoint: Process user question and return stock analysis.
 

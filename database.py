@@ -39,6 +39,87 @@ def init_database():
     conn.close()
     print(f"✓ Database initialized: {DB_PATH}")
 
+def track_usage(identifier: str) -> Dict[str, Any]:
+    """
+    Track usage by IP or user ID.
+    Returns: {count: int, limit_hit: bool, reset_date: str}
+    """
+    conn = _get_db()
+    cursor = conn.cursor()
+    
+    # Create usage table if not exists
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usage_tracking (
+            identifier TEXT PRIMARY KEY,
+            count INTEGER DEFAULT 0,
+            first_used TEXT,
+            last_used TEXT,
+            is_paid BOOLEAN DEFAULT 0
+        )
+    ''')
+    
+    # Get current usage
+    cursor.execute(
+        'SELECT count, is_paid FROM usage_tracking WHERE identifier = ?',
+        (identifier,)
+    )
+    row = cursor.fetchone()
+    
+    if row:
+        count, is_paid = row
+        # Increment count
+        cursor.execute(
+            '''UPDATE usage_tracking 
+               SET count = count + 1, last_used = ? 
+               WHERE identifier = ?''',
+            (datetime.now().isoformat(), identifier)
+        )
+        count += 1
+    else:
+        # First use
+        cursor.execute(
+            '''INSERT INTO usage_tracking 
+               (identifier, count, first_used, last_used, is_paid) 
+               VALUES (?, 1, ?, ?, 0)''',
+            (identifier, datetime.now().isoformat(), datetime.now().isoformat())
+        )
+        count = 1
+        is_paid = False
+    
+    conn.commit()
+    
+    FREE_LIMIT = 5
+    limit_hit = count > FREE_LIMIT and not is_paid
+    
+    return {
+        "count": count,
+        "limit_hit": limit_hit,
+        "is_paid": bool(is_paid),
+        "remaining": max(0, FREE_LIMIT - count) if not is_paid else -1
+    }
+
+def mark_user_as_paid(identifier: str) -> bool:
+    """Mark a user as having paid subscription"""
+    conn = _get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        'UPDATE usage_tracking SET is_paid = 1 WHERE identifier = ?',
+        (identifier,)
+    )
+    
+    # If user doesn't exist yet, create them as paid
+    if cursor.rowcount == 0:
+        cursor.execute(
+            '''INSERT INTO usage_tracking 
+               (identifier, count, first_used, last_used, is_paid) 
+               VALUES (?, 0, ?, ?, 1)''',
+            (identifier, datetime.now().isoformat(), datetime.now().isoformat())
+        )
+    
+    conn.commit()
+    print(f"✓ Marked {identifier} as paid user")
+    return True
 
 def get_cached_data(ticker: str, data_type: str) -> dict:
     """
