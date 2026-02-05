@@ -32,7 +32,12 @@ app = FastAPI(
 # Enable CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your domain
+    allow_origins=[
+    "https://alexandersucala.com",
+    "https://alexandersucala.github.io",
+    "http://localhost:3000",
+    "*"
+],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
