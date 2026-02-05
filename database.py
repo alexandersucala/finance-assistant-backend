@@ -1,8 +1,9 @@
 # backend/database.py
 
 import sqlite3
-from datetime import datetime, timedelta
 import json
+from datetime import datetime, timedelta
+from typing import Dict, Any
 import os
 from pathlib import Path
 
