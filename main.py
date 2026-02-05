@@ -121,7 +121,16 @@ async def create_checkout(request: Request):
 
 @app.post("/api/ask", response_model=AnalysisResponse)
 async def ask_question(request: Request, question_data: QuestionRequest):
-    # Get user identifier (IP address for now)
+    """
+    Main endpoint: Process user question and return stock analysis.
+    Simplified flow (v2.0):
+    - Single ticker questions ("How's Tesla?")
+    - Multi-ticker comparisons ("Compare TSLA to RIVN and LCID")
+    - General questions (no ticker)
+    - No complex conversation state - each query is independent
+    """
+    
+    # Get user identifier (IP address)
     client_ip = request.client.host
     
     # Track usage
@@ -137,19 +146,9 @@ async def ask_question(request: Request, question_data: QuestionRequest):
             "usage": usage
         }
     
-    # Continue with normal processing...
-    """
-    Main endpoint: Process user question and return stock analysis.
-
-    Simplified flow (v2.0):
-    - Single ticker questions ("How's Tesla?")
-    - Multi-ticker comparisons ("Compare TSLA to RIVN and LCID")
-    - General questions (no ticker)
-    - No complex conversation state - each query is independent
-    """
-    question = request.question.strip()
-    session_id = request.session_id
-
+    # Get question and session from parsed body (not raw request)
+    question = question_data.question.strip()
+    session_id = question_data.session_id
     if not question:
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
