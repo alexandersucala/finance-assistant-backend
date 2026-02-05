@@ -8,7 +8,8 @@ import os
 from pathlib import Path
 
 # Database file path
-DB_PATH = Path(__file__).parent.parent / "cache.db"
+# Use persistent volume on Railway, fallback to local for development
+DB_PATH = Path(os.getenv("RAILWAY_VOLUME_MOUNT_PATH", ".")) / "cache.db"
 
 # Freshness rules for different data types
 FRESHNESS = {
