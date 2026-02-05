@@ -9,7 +9,11 @@ from pathlib import Path
 
 # Database file path
 # Use persistent volume on Railway, fallback to local for development
-DB_PATH = Path(os.getenv("RAILWAY_VOLUME_MOUNT_PATH", ".")) / "cache.db"
+if os.getenv("RAILWAY_VOLUME_MOUNT_PATH"):
+    DB_PATH = Path(os.getenv("RAILWAY_VOLUME_MOUNT_PATH")) / "cache.db"
+else:
+    # Local development
+    DB_PATH = Path(__file__).parent.parent / "cache.db"
 
 # Freshness rules for different data types
 FRESHNESS = {
@@ -23,6 +27,9 @@ FRESHNESS = {
 
 def _get_db():
     """Get database connection"""
+    # Ensure directory exists
+    db_dir = DB_PATH.parent
+    db_dir.mkdir(parents=True, exist_ok=True)
     return sqlite3.connect(DB_PATH)
 
 def init_database():
