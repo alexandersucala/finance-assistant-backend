@@ -386,14 +386,6 @@ def _derive_next_actions(intent: Dict[str, Any], ticker: str) -> Tuple[List[Dict
             "keywords": ["history", "regime", "drawdown", "cycle"],
         })
 
-    if qt == "current_performance":
-        actions.insert(0, {
-            "id": "what_moved_today",
-            "label": f"Explain what moved {t} today",
-            "query": f"What likely moved {t} today? Tie price action to news, sector moves, and any known catalysts.",
-            "keywords": ["today", "move", "news", "why"],
-        })
-
     # If TSLA, a very common follow-up is EV valuation compare
     if t == "TSLA":
         actions.append({
