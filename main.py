@@ -1,7 +1,7 @@
 # backend/main.py
 # ASCII-only. V2.0 - Simplified conversation flow with clickable follow-ups
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
